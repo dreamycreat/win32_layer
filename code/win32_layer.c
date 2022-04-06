@@ -1,3 +1,6 @@
+#if !defined(__cplusplus) && (__STDC_VERSION__ < 199901L)
+	#define inline __forceinline
+#endif
 
 #define TRUE (1)
 #define FALSE (0)
@@ -5,10 +8,31 @@
 #define global_variable static
 #define internal static
 
+#include <stdint.h>
+typedef int32_t b32;
+typedef float f32;
+typedef double f64;
+
+typedef int8_t s8;
+typedef int16_t s16;
+typedef int32_t s32;
+typedef int64_t s64;
+
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+internal inline s32
+win32_abs(s32 value)
+{
+	return (value < 0) ? (value * -1) : (value);
+}
 
 #include <windows.h>
 
-global_variable int global_running;
+global_variable b32 global_running;
+global_variable WINDOWPLACEMENT global_window_placement;
 
 internal LRESULT 
 win32_window_messages_callback(HWND window,
@@ -51,18 +75,52 @@ WinMain(HINSTANCE instance,
 
 	if(RegisterClassExA(&window_class))
 	{
+		/* monitor related variables */
+		s32 monitor_vertical_resolution;
+		s32 monitor_horizontal_resolution;
+
 		/* window related variables */
 		HWND window;
+		HDC window_dc;
+		RECT window_dimensions_with_styles = {0};
+		DWORD window_style;
+		HMENU window_menu;
+		#define DEFAULT_WINDOW_WIDTH (1280)
+		#define DEFAULT_WINDOW_HEIGHT (720)
+		s32 window_horizontal_resolution_with_styles;
+		s32 window_vertical_resolution_with_styles;
+
+		/* adjusting window initial dimensions */
+		window_style = (WS_OVERLAPPEDWINDOW | WS_VISIBLE);
+		window_menu = 0;
+		window_dimensions_with_styles.right = DEFAULT_WINDOW_WIDTH;
+		window_dimensions_with_styles.bottom = DEFAULT_WINDOW_HEIGHT;
+		AdjustWindowRect(&window_dimensions_with_styles, window_style, (window_menu) ? (TRUE) : (FALSE));
+		window_horizontal_resolution_with_styles = win32_abs(window_dimensions_with_styles.left) + win32_abs(window_dimensions_with_styles.right);
+		window_vertical_resolution_with_styles = win32_abs(window_dimensions_with_styles.top) + win32_abs(window_dimensions_with_styles.bottom);
 
 		window = CreateWindowExA(0, window_class.lpszClassName,
-		                         "Main Window", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-		                         0, 0, CW_USEDEFAULT, CW_USEDEFAULT,
+		                         "Main Window",
+		                         window_style,
+		                         0, 0,
+		                         window_horizontal_resolution_with_styles,
+		                         window_vertical_resolution_with_styles,
 		                         0, 0, instance, 0);
 
 		if(window)
 		{
-			/* window related variables */
+			/* window message loop related variables */
 			MSG msg;
+
+			/* adjusting window initial position (centered) on monitor */
+			window_dc = GetDC(window);
+			monitor_vertical_resolution = GetDeviceCaps(window_dc, VERTRES);
+			monitor_horizontal_resolution = GetDeviceCaps(window_dc, HORZRES);
+
+			SetWindowPos(window, 0,
+			             (monitor_horizontal_resolution - window_horizontal_resolution_with_styles) / 2,
+			             (monitor_vertical_resolution - window_vertical_resolution_with_styles) / 2,
+			             0, 0, (SWP_NOSIZE | SWP_NOZORDER));
 
 			global_running = TRUE;
 			while(global_running)
@@ -127,7 +185,7 @@ WinMain(HINSTANCE instance,
 					   msg.message == WM_SYSKEYUP)
 					{
 						UINT key;
-						int is_down, was_down, is_alt;
+						b32 is_down, was_down, is_alt;
 
 						key = (UINT) msg.wParam;
 						is_alt = (msg.lParam & (1 << 29)) != 0;
