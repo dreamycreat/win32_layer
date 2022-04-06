@@ -51,6 +51,7 @@ WinMain(HINSTANCE instance,
 
 	if(RegisterClassExA(&window_class))
 	{
+		/* window related variables */
 		HWND window;
 
 		window = CreateWindowExA(0, window_class.lpszClassName,
@@ -60,6 +61,7 @@ WinMain(HINSTANCE instance,
 
 		if(window)
 		{
+			/* window related variables */
 			MSG msg;
 
 			global_running = TRUE;
@@ -67,8 +69,90 @@ WinMain(HINSTANCE instance,
 			{
 				while(PeekMessageA(&msg, window, 0, 0, PM_REMOVE))
 				{
-					TranslateMessage(&msg);
-					DispatchMessage(&msg);
+					/*
+					 * Mouse input
+					*/
+
+					/* (key pressed) mouse button messages */
+					if(msg.message == WM_LBUTTONDOWN ||
+					   msg.message == WM_MBUTTONDOWN ||
+					   msg.message == WM_RBUTTONDOWN)
+					{
+						UINT mouse_button;
+
+						mouse_button = (UINT) msg.wParam;
+
+						switch(mouse_button)
+						{
+							case MK_LBUTTON:
+							{
+								OutputDebugStringA("MB Left (is down)!!!\n");
+							} break;
+
+							case MK_MBUTTON:
+							{
+								OutputDebugStringA("MB Middle (is down)!!!\n");
+							} break;
+
+							case MK_RBUTTON:
+							{
+								OutputDebugStringA("MB Right (is down)!!!\n");
+							} break;
+						}
+					}
+
+					/* (key released) mouse button messages */
+					if(msg.message == WM_LBUTTONUP)
+					{
+						OutputDebugStringA("MB Left (released)!\n");
+					}
+
+					if(msg.message == WM_MBUTTONUP)
+					{
+						OutputDebugStringA("MB Left (released)!\n");
+					}
+
+					if(msg.message == WM_RBUTTONUP)
+					{
+						OutputDebugStringA("MB Left (released)!\n");
+					}
+
+					/*
+					 * Keyboard input
+					*/
+
+					if(msg.message == WM_KEYDOWN ||
+					   msg.message == WM_KEYUP ||
+					   msg.message == WM_SYSKEYDOWN ||
+					   msg.message == WM_SYSKEYUP)
+					{
+						UINT key;
+						int is_down, was_down, is_alt;
+
+						key = (UINT) msg.wParam;
+						is_alt = (msg.lParam & (1 << 29)) != 0;
+						is_down = (msg.lParam & (1 << 31)) == 0;
+						was_down = (msg.lParam & (1 << 30)) != 0;
+
+						if(was_down != is_down)
+						{
+							switch(key)
+							{
+								case VK_F4:
+								{
+									if(is_alt && is_down)
+									{
+										global_running = FALSE;
+									}
+								} break;
+							}
+						}
+					}
+					else
+					{
+						TranslateMessage(&msg);
+						DispatchMessage(&msg);
+					}
 				}
 			}
 		}
