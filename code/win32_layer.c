@@ -2,6 +2,12 @@
 	#define inline __forceinline
 #endif
 
+#if defined(DEBUG)
+	#define assert(expression) if(!(expression)) { *(int *)0 = 0; }
+#else
+	#define assert(expression)
+#endif
+
 #define TRUE (1)
 #define FALSE (0)
 
@@ -84,6 +90,8 @@ win32_resize_backbuffer(s32 new_width,
 	                                                   DIB_RGB_COLORS,
 	                                                   &global_backbuffer.pixels,
 	                                                   0, 0);
+
+	assert(global_backbuffer.bitmap_handle);
 }
 
 internal LRESULT 
@@ -99,6 +107,14 @@ win32_window_messages_callback(HWND window,
 		case WM_CLOSE:
 		{
 			global_running = FALSE;
+		} break;
+
+		case WM_DESTROY:
+		{
+			/* TODO: Diagnostic (main window destroyed) */
+			/* TODO: Check if it was intended */
+
+			PostQuitMessage(0);
 		} break;
 
 		default:
@@ -164,6 +180,9 @@ WinMain(HINSTANCE instance,
 			/* window message loop related variables */
 			MSG msg;
 
+			/* removing resizable window capabilities */
+			SetWindowLongA(window, GWL_STYLE, (GetWindowLong(window, GWL_STYLE) & ~WS_SIZEBOX) & ~WS_MAXIMIZEBOX);
+
 			/* adjusting window initial position (centered) on monitor */
 			window_dc = GetDC(window);
 			monitor_vertical_resolution = GetDeviceCaps(window_dc, VERTRES);
@@ -203,17 +222,14 @@ WinMain(HINSTANCE instance,
 						{
 							case MK_LBUTTON:
 							{
-								OutputDebugStringA("MB Left (is down)!!!\n");
 							} break;
 
 							case MK_MBUTTON:
 							{
-								OutputDebugStringA("MB Middle (is down)!!!\n");
 							} break;
 
 							case MK_RBUTTON:
 							{
-								OutputDebugStringA("MB Right (is down)!!!\n");
 							} break;
 						}
 					}
@@ -221,17 +237,14 @@ WinMain(HINSTANCE instance,
 					/* (key released) mouse button messages */
 					if(msg.message == WM_LBUTTONUP)
 					{
-						OutputDebugStringA("MB Left (released)!\n");
 					}
 
 					if(msg.message == WM_MBUTTONUP)
 					{
-						OutputDebugStringA("MB Left (released)!\n");
 					}
 
 					if(msg.message == WM_RBUTTONUP)
 					{
-						OutputDebugStringA("MB Left (released)!\n");
 					}
 
 					/*
@@ -255,6 +268,48 @@ WinMain(HINSTANCE instance,
 						{
 							switch(key)
 							{
+								case VK_RETURN:
+								{
+									/*
+									 * NOTE: Toggle fullscreen
+									*/
+									if(is_alt && is_down)
+									{
+										DWORD window_style;
+										RECT client_rect = {0};
+
+										window_style = GetWindowLong(window, GWL_STYLE);
+
+										if(window_style & WS_OVERLAPPEDWINDOW)
+										{
+											MONITORINFO monitor_info = {0};
+											monitor_info.cbSize = sizeof(MONITORINFO);
+
+											if(GetWindowPlacement(window, &global_window_placement) &&
+											   GetMonitorInfoA(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &monitor_info))
+											{
+												SetWindowLong(window, GWL_STYLE, window_style & ~WS_OVERLAPPEDWINDOW);
+												SetWindowPos(window, HWND_TOP,
+												             monitor_info.rcMonitor.left, monitor_info.rcMonitor.top,
+												             monitor_info.rcMonitor.right - monitor_info.rcMonitor.left,
+												             monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top,
+												             SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+											}
+										}
+										else
+										{
+											SetWindowLong(window, GWL_STYLE, window_style | ((WS_OVERLAPPEDWINDOW & ~WS_SIZEBOX) & ~WS_MAXIMIZEBOX));
+											SetWindowPlacement(window, &global_window_placement);
+											SetWindowPos(window, 0, 0, 0, 0, 0,
+											             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+											             SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+										}
+
+										assert(GetClientRect(window, &client_rect));
+										win32_resize_backbuffer(client_rect.right, client_rect.bottom);
+									}
+								} break;
+
 								case VK_F4:
 								{
 									if(is_alt && is_down)
@@ -308,12 +363,12 @@ WinMain(HINSTANCE instance,
 		}
 		else
 		{
-			/* TODO: Diagnóstico (falha ao criar a janela principal) */
+			/* TODO: Diagnostic (failed when creating the main window) */
 		}
 	}
 	else
 	{
-		/* TODO: Diagnóstico (falha ao registrar a classe da janela principal) */
+		/* TODO: Diagnostic (failed when registering the main window class) */
 	}
 
 	return 0;
