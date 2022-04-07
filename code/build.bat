@@ -4,7 +4,7 @@ set files=..\code\win32_layer.c
 set debug_exe_name=debug_win32_layer_x64.exe
 set release_exe_name=release_win32_layer_x64.exe
 
-set common_compiler_flags=-nologo -FC -Z7 -EHa- -GR- -MT -Oi -W4 -WX -wd4100
+set common_compiler_flags=-nologo -FC -Z7 -EHa- -GR- -MT -Oi -W4 -WX -wd4100 -wd4101
 set common_linker_flags=-subsystem:windows,6.00 -opt:ref -incremental:no user32.lib gdi32.lib winmm.lib
 
 set debug_defines=-DDEBUG
@@ -27,7 +27,7 @@ cl %debug_build_config%
 rem new line with echo
 echo.
 
-rem echo 	(release build)
-rem cl %release_build_config%
+echo 	(release build)
+cl %release_build_config%
 
 popd

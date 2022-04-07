@@ -32,16 +32,12 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-internal inline s32
-win32_abs(s32 value)
-{
-	return (value < 0) ? (value * -1) : (value);
-}
+
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <timeapi.h> /* timeBeginPeriod() */
-#include <strsafe.h> /* StringCbPrintfA */
+#include <strsafe.h> /* StringCbPrintfA | NOTE: Replace this with stb_sprintf.h or with something better */
 
 typedef struct
 {
@@ -172,8 +168,8 @@ WinMain(HINSTANCE instance,
 		window_dimensions_with_styles.right = DEFAULT_WINDOW_WIDTH;
 		window_dimensions_with_styles.bottom = DEFAULT_WINDOW_HEIGHT;
 		AdjustWindowRect(&window_dimensions_with_styles, window_style, (window_menu) ? (TRUE) : (FALSE));
-		window_horizontal_resolution_with_styles = win32_abs(window_dimensions_with_styles.left) + win32_abs(window_dimensions_with_styles.right);
-		window_vertical_resolution_with_styles = win32_abs(window_dimensions_with_styles.top) + win32_abs(window_dimensions_with_styles.bottom);
+		window_horizontal_resolution_with_styles = abs(window_dimensions_with_styles.left) + abs(window_dimensions_with_styles.right);
+		window_vertical_resolution_with_styles = abs(window_dimensions_with_styles.top) + abs(window_dimensions_with_styles.bottom);
 
 		window = CreateWindowExA(0, window_class.lpszClassName,
 		                         "Main Window",
