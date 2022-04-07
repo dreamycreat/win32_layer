@@ -31,8 +31,60 @@ win32_abs(s32 value)
 
 #include <windows.h>
 
+typedef struct
+{
+	s32 width;
+	s32 height;
+	s32 bytes_per_pixel;
+	s32 line_stride;
+	HDC bitmap_dc;
+	HBITMAP bitmap_handle;
+	void *pixels;
+} win32_backbuffer;
+
+
+
 global_variable b32 global_running;
 global_variable WINDOWPLACEMENT global_window_placement;
+global_variable win32_backbuffer global_backbuffer;
+
+
+
+internal void
+win32_resize_backbuffer(s32 new_width,
+                        s32 new_height)
+{
+	BITMAPINFO bitmap_info;
+
+	if(!global_backbuffer.bitmap_dc)
+	{
+		global_backbuffer.bitmap_dc = CreateCompatibleDC(0);
+	}
+
+	global_backbuffer.width = new_width;
+	global_backbuffer.height = new_height;
+	global_backbuffer.bytes_per_pixel = 4; /* ARGB */
+	global_backbuffer.line_stride = global_backbuffer.width * global_backbuffer.bytes_per_pixel;
+
+	bitmap_info.bmiHeader.biSize = sizeof(bitmap_info.bmiHeader);
+	bitmap_info.bmiHeader.biWidth = new_width;
+
+	bitmap_info.bmiHeader.biHeight = new_height;
+	/*
+	 * NOTE: "biHeight" with a positive number are bottom-top drawing. For a top-bottom
+	 * drawing, use the NEGATIVE value of the height.
+	 */
+
+	bitmap_info.bmiHeader.biPlanes = 1;
+	bitmap_info.bmiHeader.biBitCount = 32;
+	bitmap_info.bmiHeader.biCompression = BI_RGB;
+	
+	global_backbuffer.bitmap_handle = CreateDIBSection(global_backbuffer.bitmap_dc,
+	                                                   &bitmap_info,
+	                                                   DIB_RGB_COLORS,
+	                                                   &global_backbuffer.pixels,
+	                                                   0, 0);
+}
 
 internal LRESULT 
 win32_window_messages_callback(HWND window,
@@ -122,9 +174,16 @@ WinMain(HINSTANCE instance,
 			             (monitor_vertical_resolution - window_vertical_resolution_with_styles) / 2,
 			             0, 0, (SWP_NOSIZE | SWP_NOZORDER));
 
+			/* backbuffer setup */
+			win32_resize_backbuffer(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
+
 			global_running = TRUE;
 			while(global_running)
 			{
+				/*
+				 * Input
+				*/
+
 				while(PeekMessageA(&msg, window, 0, 0, PM_REMOVE))
 				{
 					/*
@@ -212,6 +271,39 @@ WinMain(HINSTANCE instance,
 						DispatchMessage(&msg);
 					}
 				}
+
+				/*
+				 * Update & Draw
+				*/
+
+				/* IMPORTANT: Test Code! Clear client area with a HEX color */
+				{
+					s32 x, y;
+					u32 *pixel;
+					u32 pixel_color;
+
+					pixel = (u32 *)global_backbuffer.pixels;
+					pixel_color = 0xff14233a; /* A R G B */
+
+					for(y = global_backbuffer.height - 1;
+					    y >= 0;
+					    --y)
+					{
+						for(x = 0;
+						    x < global_backbuffer.width;
+						    ++x)
+						{
+							*pixel++ = pixel_color;
+						}
+					}
+				}
+
+				SelectObject(global_backbuffer.bitmap_dc, global_backbuffer.bitmap_handle);
+				BitBlt(window_dc,
+				       0, 0,
+				       global_backbuffer.width, global_backbuffer.height,
+				       global_backbuffer.bitmap_dc,
+				       0, 0, SRCCOPY);
 			}
 		}
 		else
