@@ -8,6 +8,9 @@
 	#define assert(expression)
 #endif
 
+#define min(a, b) ((a) < (b)) ? (a) : (b)
+#define max(a, b) ((a) > (b)) ? (a) : (b)
+
 #define TRUE (1)
 #define FALSE (0)
 
@@ -35,7 +38,10 @@ win32_abs(s32 value)
 	return (value < 0) ? (value * -1) : (value);
 }
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <timeapi.h> /* timeBeginPeriod() */
+#include <strsafe.h> /* StringCbPrintfA */
 
 typedef struct
 {
@@ -146,9 +152,11 @@ WinMain(HINSTANCE instance,
 		/* monitor related variables */
 		s32 monitor_vertical_resolution;
 		s32 monitor_horizontal_resolution;
+		s32 monitor_vertical_refresh_rate;
 
 		/* window related variables */
 		HWND window;
+		char window_title[512];
 		HDC window_dc;
 		RECT window_dimensions_with_styles = {0};
 		DWORD window_style;
@@ -180,6 +188,18 @@ WinMain(HINSTANCE instance,
 			/* window message loop related variables */
 			MSG msg;
 
+			/* timing related variables */
+			#define WINDOW_TARGET_TIMER_RESOLUTION_IN_MS (1)
+			TIMECAPS device_time_capabilities;
+			UINT window_timer_resolution;
+			LARGE_INTEGER performance_frequency;
+			LARGE_INTEGER start_counter;
+			LARGE_INTEGER end_counter;
+			b32 limit_fps;
+			f32 ms_elapsed;
+			f32 ms_per_frame, desired_ms_per_frame;
+			f32 frames_per_second;
+
 			/* removing resizable window capabilities */
 			SetWindowLongA(window, GWL_STYLE, (GetWindowLong(window, GWL_STYLE) & ~WS_SIZEBOX) & ~WS_MAXIMIZEBOX);
 
@@ -195,6 +215,32 @@ WinMain(HINSTANCE instance,
 
 			/* backbuffer setup */
 			win32_resize_backbuffer(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
+
+			/* setting window timer resolution for events */
+			if(timeGetDevCaps(&device_time_capabilities, sizeof(device_time_capabilities)) != TIMERR_NOERROR)
+			{
+				/* TODO: Diagnostic (device doesn't have time resolution capabilities; can't set) */
+			}
+			else
+			{
+				window_timer_resolution = min(max(device_time_capabilities.wPeriodMin, WINDOW_TARGET_TIMER_RESOLUTION_IN_MS), device_time_capabilities.wPeriodMax);
+				timeBeginPeriod(window_timer_resolution);
+			}
+
+			/* timing & sleep setup */
+			#define DESIRED_MONITOR_VERTICAL_REFRESH_RATE (30)
+			monitor_vertical_refresh_rate = GetDeviceCaps(window_dc, VREFRESH);
+
+			if(monitor_vertical_refresh_rate <= 1)
+			{
+				monitor_vertical_refresh_rate = DESIRED_MONITOR_VERTICAL_REFRESH_RATE;
+			}
+
+			desired_ms_per_frame = (1.0f / (f32)monitor_vertical_refresh_rate) * 1000;
+			limit_fps = FALSE;
+
+			QueryPerformanceFrequency(&performance_frequency);
+			QueryPerformanceCounter(&start_counter);
 
 			global_running = TRUE;
 			while(global_running)
@@ -332,6 +378,7 @@ WinMain(HINSTANCE instance,
 				*/
 
 				/* IMPORTANT: Test Code! Clear client area with a HEX color */
+				#if 1
 				{
 					s32 x, y;
 					u32 *pixel;
@@ -352,6 +399,7 @@ WinMain(HINSTANCE instance,
 						}
 					}
 				}
+				#endif
 
 				SelectObject(global_backbuffer.bitmap_dc, global_backbuffer.bitmap_handle);
 				BitBlt(window_dc,
@@ -359,6 +407,48 @@ WinMain(HINSTANCE instance,
 				       global_backbuffer.width, global_backbuffer.height,
 				       global_backbuffer.bitmap_dc,
 				       0, 0, SRCCOPY);
+
+				/*
+				 * Timing
+				*/
+
+				/* Check sleep need */
+				if(limit_fps)
+				{
+					QueryPerformanceCounter(&end_counter);
+					ms_elapsed = (f32) (end_counter.QuadPart - start_counter.QuadPart) / (f32) performance_frequency.QuadPart;
+					ms_elapsed *= 1000;
+					
+					if(ms_elapsed < desired_ms_per_frame)
+					{
+						DWORD ms_to_sleep = (DWORD) ((desired_ms_per_frame - ms_elapsed) - (0.001f * desired_ms_per_frame)); /* tempo que falta - ajuste de 0.01% do tempo desejado */
+						
+						Sleep(ms_to_sleep);
+
+						QueryPerformanceCounter(&end_counter);
+						ms_elapsed = (f32) (end_counter.QuadPart - start_counter.QuadPart) / (f32) performance_frequency.QuadPart;
+						ms_elapsed *= 1000;
+
+						while(ms_elapsed < desired_ms_per_frame)
+						{
+							QueryPerformanceCounter(&end_counter);
+							ms_elapsed = (f32) (end_counter.QuadPart - start_counter.QuadPart) / (f32) performance_frequency.QuadPart;
+							ms_elapsed *= 1000;
+						}
+					}
+				}
+
+				/* Update window title with frame details & update start_counter */
+				QueryPerformanceCounter(&end_counter);
+
+				ms_per_frame = (f32) (end_counter.QuadPart - start_counter.QuadPart) / (f32) performance_frequency.QuadPart;
+				ms_per_frame *= 1000;
+				frames_per_second = (f32) performance_frequency.QuadPart / (f32) (end_counter.QuadPart - start_counter.QuadPart);
+
+				StringCbPrintfA(window_title, sizeof(window_title), "Main Window | ms: %.5f | fps: %.2f", ms_per_frame, frames_per_second);
+				SetWindowText(window, window_title);
+
+				start_counter = end_counter;
 			}
 		}
 		else

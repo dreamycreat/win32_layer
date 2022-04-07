@@ -5,7 +5,7 @@ set debug_exe_name=debug_win32_layer_x64.exe
 set release_exe_name=release_win32_layer_x64.exe
 
 set common_compiler_flags=-nologo -FC -Z7 -EHa- -GR- -MT -Oi -W4 -WX -wd4100
-set common_linker_flags=-subsystem:windows,6.00 -opt:ref -incremental:no user32.lib gdi32.lib
+set common_linker_flags=-subsystem:windows,6.00 -opt:ref -incremental:no user32.lib gdi32.lib winmm.lib
 
 set debug_defines=-DDEBUG
 set debug_compiler_flags=-Od
@@ -21,12 +21,13 @@ if not exist ..\build mkdir ..\build
 
 pushd ..\build
 
-rem debug build
+echo 	(debug build)
 cl %debug_build_config%
 
 rem new line with echo
 echo.
 
-rem release build
+rem echo 	(release build)
 rem cl %release_build_config%
+
 popd
