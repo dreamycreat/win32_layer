@@ -1,5 +1,37 @@
+/* NOTE: Detecting current compiler */
+#if defined(_MSC_VER)
+	#define MSVC_COMPILER (1)
+	#define LLVM_COMPILER (0)
+	#define GCC_COMPILER (0)
+	#define INTEL_COMPILER (0)
+#elif defined(__INTEL_COMPILER)
+	#define MSVC_COMPILER (0)
+	#define LLVM_COMPILER (0)
+	#define GCC_COMPILER (0)
+	#define INTEL_COMPILER (1)
+#elif defined(__GNUC__) && !defined(__llvm__) && !defined(__INTEL_COMPILER)
+	#define MSVC_COMPILER (0)
+	#define LLVM_COMPILER (0)
+	#define GCC_COMPILER (1)
+	#define INTEL_COMPILER (0)
+#elif defined(__llvm__)
+	#define MSVC_COMPILER (0)
+	#define LLVM_COMPILER (1)
+	#define GCC_COMPILER (0)
+	#define INTEL_COMPILER (0)
+#endif
+
+/* NOTE: C89 inline macro for different compilers */
 #if !defined(__cplusplus) && (__STDC_VERSION__ < 199901L)
-	#define inline __forceinline
+	#if defined(MSVC_COMPILER)
+		#define inline __forceinline
+	#elif #defined(LLVM_COMPILER)
+		#define inline __attribute__((always_inline))
+	#elif defined(GCC_COMPILER)
+		#define inline __attribute__((always_inline))
+	#elif defined(INTEL_COMPILER)
+		#define inline __attribute__((forceinline))
+	#endif
 #endif
 
 #if defined(DEBUG)
