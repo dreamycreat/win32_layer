@@ -7,6 +7,7 @@
 * Timing (ms & fps) and main thread sleep
 
 ###### TODO
+* Fibers for the window message loop
 * XInput (if needed)
 * Convenient file I/O abstraction
 * Sound
