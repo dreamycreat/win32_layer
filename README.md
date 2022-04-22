@@ -8,6 +8,7 @@
 
 ###### TODO
 * Fibers for the window message loop
+* Resource file template
 * XInput (if needed)
 * Convenient file I/O abstraction
 * Sound
