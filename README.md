@@ -13,3 +13,4 @@
 * Convenient file I/O abstraction
 * Sound
 * Threads
+* Replace stdint.h for c89
